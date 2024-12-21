@@ -1,0 +1,135 @@
+version: "3.8"
+
+services:
+  bot:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - postgres://postgres:5432
+      - mysql://mysql:3306
+      - sqlite://sqlite:1433
+      - REDIS_DB_PATH=/app/data/local.db
+      - USER_DB_PATH=/app/data/users.db
+      - GUILD_DB_PATH=/app/data/guilds
+      - BOT_TOKEN=${BOT_TOKEN}
+      - CLIENT_ID=${CLIENT_ID}
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - db_data:/app/data
+    depends_on:
+      - redis
+      - dashboard
+      - api
+      - postgres
+      - nginx
+      - mysql
+      - sqlite
+
+  api:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - DB_PATH=/app/data/local.db
+      - GUILD_DB_PATH=/app/data/guilds
+      - BOT_TOKEN=${BOT_TOKEN}
+      - CLIENT_ID=${CLIENT_ID}
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - api_data:/app/data
+    depends_on:
+      - redis
+      - postgres
+      - mysql
+      - sqlite
+
+  dashboard:
+    build: .
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - DB_PATH=/app/data/local.db
+      - GUILD_DB_PATH=/app/data/guilds
+      - BOT_TOKEN=${BOT_TOKEN}
+      - CLIENT_ID=${CLIENT_ID}
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - dashboard_data:/app/data
+    depends_on:
+      - redis
+      - postgres
+      - mysql
+      - sqlite
+
+  postgres:
+    image: postgres:alpine
+    ports:
+      - "5432:5432"
+    volumes:
+      - api_db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: api_db
+
+  mysql:
+    image: mysql:alpine
+    ports:
+      - "3306:3306"
+    volumes:
+      - api_db_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: api_db
+      MYSQL_USER: root
+      MYSQL_PASSWORD: password
+
+  sqlite:
+    image: sqlite:alpine
+    ports:
+      - "1433:1433"
+    volumes:
+      - api_db_data:/var/lib/sqlite
+    environment:
+      SQLITE_USER: sqlite
+      SQLITE_PASSWORD: password
+      SQLITE_DB: api_db
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - .:/app
+    depends_on:
+      - api
+      - dashboard
+      - bot
+      - postgres
+      - mysql
+      - sqlite
+
+volumes:
+  redis_data:
+  db_data:
+  api_data:
+  api_db_data:
+  app_data:
+  dashboard_data:
